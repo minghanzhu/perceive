@@ -4,3 +4,6 @@ perceive.asv
 *.asv
 .DS_Store
 /resources
+*.csv
+*.png
+*.mat
