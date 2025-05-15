@@ -83,7 +83,24 @@ if ~isempty(files)
         fullfname = [];
     elseif iscell(files)
         for a=1:length(files)
-            fullfname{a,1} = [folder{a} filesep files{a}];
+            % Extract only the filename and extension from the ls output item.
+            % files{a} might be just 'name.ext' or 'path/name.ext' depending on ls behavior.
+            [~, name_only, ext_only] = fileparts(files{a});
+            actual_filename = [name_only, ext_only];
+            
+            % Handle cases where files{a} might be a directory name ending with a filesep,
+            % which could lead to an empty actual_filename if not handled.
+            if isempty(actual_filename) && ~isempty(files{a}) && endsWith(files{a}, filesep)
+                trimmed_file_entry = files{a}(1:end-length(filesep)); % Remove trailing filesep
+                [~, name_only, ext_only] = fileparts(trimmed_file_entry);
+                actual_filename = [name_only, ext_only];
+            elseif isempty(actual_filename) && ~isempty(files{a}) % if files{a} itself is a filename without extension that fileparts might miss
+                 actual_filename = files{a}; % Use as is if fileparts fails to extract, assuming it's a simple name
+            end
+
+            % folder{a} is already correctly set to either fileparts(string) or cd().
+            % fullfile() will correctly join them.
+            fullfname{a,1} = fullfile(folder{a}, actual_filename);
         end   
     end
 else
