@@ -1,4 +1,17 @@
 function [files,folder,fullfname] = perceive_ffind(string,cell,rec)
+% PERCEIVE_FFIND Find files matching a pattern with advanced handling for different OS
+%
+% Inputs:
+%   string - Search pattern/string to find files
+%   cell   - Flag to return results as cell array (default: 1)
+%   rec    - Flag for recursive search (default: 0)
+%
+% Outputs:
+%   files     - Found filenames (as cell array or char depending on cell flag)
+%   folder    - Corresponding folders for each file
+%   fullfname - Full file paths (folder + filename)
+
+% Set default parameters if not provided
 if ~exist('cell','var')
     cell = 1;
 end
@@ -7,12 +20,15 @@ if ~exist('rec','var')
     rec = 0;
 end
 
-
+% Non-recursive file search
 if ~rec
+    % Get initial file listing
     x = ls(string);
     if size(x,1)>1
+        % Windows-style output: convert matrix to cell array
         files = cellstr(ls(string));
     else
+        % Unix-style output: handle space/tab separated string
         % On unix, the output of 'ls' is a rich text, see the help for LS:
         %  >> On UNIX, LS returns a character row vector of filenames
         %  >> separated by tab and space characters.
@@ -32,6 +48,7 @@ if ~rec
         end
     end
     
+    % Determine folder for each file
     for a =1:length(files)
         ff = fileparts(string);
         if ~isempty(ff)
@@ -39,19 +56,21 @@ if ~rec
         else
             folder{a} = cd;
         end
-
     end
 
-
 else
-    
-    rdirs=find_folders;
-    outfiles=ffind(string,1,0);
+    % Recursive file search implementation
+    rdirs=find_folders;  % Get list of subdirectories
+    outfiles=ffind(string,1,0);  % Find files in current directory
     outfolders = {};
     folders = {};
+    
+    % Initialize folders for files in current directory
     for a = 1:length(outfiles)
         outfolders{a} = cd;
     end
+    
+    % Search in all subdirectories
     for a=1:length(rdirs)
         files=ffind([rdirs{a} filesep string],1,0);
         if ~isempty(files)
@@ -65,6 +84,8 @@ else
     files = outfiles;
     folder = outfolders;
 end
+
+% Remove '.' and '..' from results and ensure uniqueness
 ris = logical(sum([ismember(files,'.') ,ismember(files,'..')],2));
 if ris
     files(ris)=[];
@@ -72,38 +93,43 @@ if ris
     [files,x]=unique(files);
     folder = folder(x);
 end
-% keyboard
+
+% Format output based on input parameters and results
 if ~isempty(files)
     if ~cell && length(files) == 1
+        % Single file result when cell=0
         files = files{1};
         fullfname = [folder{1} filesep files];
     elseif iscell(files) && isempty(files{1})
+        % No files found
         files = [];
         folder = [];
         fullfname = [];
     elseif iscell(files)
+        % Multiple files found - construct full file paths
         for a=1:length(files)
             % Extract only the filename and extension from the ls output item.
             % files{a} might be just 'name.ext' or 'path/name.ext' depending on ls behavior.
             [~, name_only, ext_only] = fileparts(files{a});
             actual_filename = [name_only, ext_only];
             
-            % Handle cases where files{a} might be a directory name ending with a filesep,
-            % which could lead to an empty actual_filename if not handled.
+            % Handle special cases for directory names and files without extensions
             if isempty(actual_filename) && ~isempty(files{a}) && endsWith(files{a}, filesep)
-                trimmed_file_entry = files{a}(1:end-length(filesep)); % Remove trailing filesep
+                % Handle directory names ending with filesep
+                trimmed_file_entry = files{a}(1:end-length(filesep));
                 [~, name_only, ext_only] = fileparts(trimmed_file_entry);
                 actual_filename = [name_only, ext_only];
-            elseif isempty(actual_filename) && ~isempty(files{a}) % if files{a} itself is a filename without extension that fileparts might miss
-                 actual_filename = files{a}; % Use as is if fileparts fails to extract, assuming it's a simple name
+            elseif isempty(actual_filename) && ~isempty(files{a})
+                % Handle filenames without extensions
+                actual_filename = files{a};
             end
 
-            % folder{a} is already correctly set to either fileparts(string) or cd().
-            % fullfile() will correctly join them.
+            % Construct full file path using folder and filename
             fullfname{a,1} = fullfile(folder{a}, actual_filename);
         end   
     end
 else
+    % No files found - return empty results
     folder = [];
     fullfname = [];
 end
